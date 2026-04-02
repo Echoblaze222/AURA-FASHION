@@ -1,0 +1,2224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AURA — Admin</title>
+
+<!--
+  ================================================================
+  STAGE 2: ADMIN DASHBOARD — HTML & CSS Layout
+  ================================================================
+  What this file contains:
+    1. The sticky top navigation bar (icons only)
+    2. The scrollable main content area (panels)
+    3. The fixed bottom navigation bar (TikTok style)
+    4. Full-width progress bar analytics (no small boxes)
+    5. All hover/active states for every button
+    6. Detailed CSS comments explaining every layout technique
+
+  What this file does NOT contain yet:
+    - Firebase logic (Stage 3)
+    - Real data (placeholder values used throughout)
+    - Form submission handlers
+  ================================================================
+-->
+
+<!-- Lucide Icons — a clean, minimal icon set used by Figma, Linear, etc. -->
+<!-- We load it as a script because it replaces <i> tags with real SVGs -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<!-- Fonts: Cormorant Garamond (luxury editorial) + DM Sans (clean UI body) -->
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+
+<style>
+
+/* ================================================================
+   SECTION 1: DESIGN TOKENS
+   These are CSS variables — think of them as named values you
+   can reuse everywhere. If you want to change the accent color,
+   you only change it HERE and it updates everywhere instantly.
+================================================================ */
+:root {
+  /* ── Colours ── */
+  --black:        #080808;       /* True near-black background */
+  --black2:       #111111;       /* Slightly lighter — used for cards */
+  --black3:       #1a1a1a;       /* Used for input backgrounds */
+  --black4:       #242424;       /* Hover states on dark surfaces */
+
+  --white:        #f5f5f5;       /* Off-white — pure #fff can feel harsh on dark */
+  --white2:       rgba(245,245,245, 0.72); /* 72% opacity white for secondary text */
+  --white3:       rgba(245,245,245, 0.40); /* 40% opacity — muted labels */
+  --white4:       rgba(245,245,245, 0.15); /* 15% — very subtle borders */
+  --white5:       rgba(245,245,245, 0.07); /* 7% — glass card backgrounds */
+
+  --accent:       #e8d5b0;       /* Warm champagne gold — the ONE pop of colour */
+  --accent-dim:   rgba(232,213,176, 0.12); /* Diluted accent for backgrounds */
+  --green:        #34c759;       /* iOS green — confirmed / in-stock */
+  --amber:        #ff9f0a;       /* iOS amber — warning / low stock */
+  --red:          #ff3b30;       /* iOS red — errors / out of stock */
+
+  /* ── Layout measurements ── */
+  --top-bar-h:    56px;    /* Height of the sticky top navigation bar */
+  --bot-bar-h:    72px;    /* Height of the fixed bottom navigation bar */
+  --page-pad:     20px;    /* Left/right padding for all page content */
+  --card-radius:  18px;    /* Rounded corner size for cards */
+  --btn-radius:   12px;    /* Rounded corner size for buttons */
+  --pill-radius:  100px;   /* Full pill shape for tags and small buttons */
+
+  /* ── Typography scale ── */
+  --fs-display:   1.9rem;  /* Big section headings */
+  --fs-title:     1.1rem;  /* Card titles */
+  --fs-body:      0.82rem; /* Normal body text */
+  --fs-small:     0.68rem; /* Labels, metadata */
+  --fs-micro:     0.56rem; /* Tags, timestamps, uppercase labels */
+
+  /* ── Motion ── */
+  --ease-out:     cubic-bezier(0.16, 1, 0.3, 1);  /* Snappy spring for reveals */
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1); /* Subtle bounce for icons */
+}
+
+/* ================================================================
+   SECTION 2: RESET & BASE
+================================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Prevent layout shift when scrollbar appears/disappears */
+  overflow-y: scroll;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  background: var(--black);
+  color: var(--white);
+  -webkit-font-smoothing: antialiased;
+
+  /*
+    ── KEY LAYOUT TECHNIQUE: Body padding ──────────────────────
+    Because the top bar and bottom bar are FIXED (they float
+    over the content), we need to add padding to the body so
+    the real content doesn't hide behind them.
+
+    padding-top  = same height as the top bar (var(--top-bar-h))
+    padding-bottom = same height as the bottom bar (var(--bot-bar-h))
+                   + extra 8px breathing room
+
+    Without this, the first and last items on the page would be
+    invisible, hidden behind the fixed bars.
+  */
+  padding-top:    var(--top-bar-h);
+  padding-bottom: calc(var(--bot-bar-h) + 8px);
+
+  /* Safe area insets for iPhones with a notch/home bar */
+  padding-bottom: calc(var(--bot-bar-h) + env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+/* ================================================================
+   SECTION 3: TOP NAVIGATION BAR
+   ────────────────────────────────────────────────────────────────
+   HOW IT STAYS STUCK TO THE TOP:
+
+   position: fixed
+     → Removes the element from the normal page flow.
+       It no longer takes up space in the document.
+       Instead it "floats" above everything else.
+
+   top: 0
+     → Pins it to 0px from the top of the VIEWPORT (the screen).
+       Not the page — the screen. So even when you scroll down,
+       it stays stuck because it's measured from the screen edge.
+
+   left: 0 / right: 0
+     → Stretches it from the left edge to the right edge of the screen.
+
+   z-index: 100
+     → Controls the "stacking order". A higher number = on top.
+       We use 100 so the bar floats above all other content.
+================================================================ */
+.top-bar {
+  /* ── THE FIXED POSITIONING ── */
+  position: fixed;   /* Floats above page content — doesn't scroll with it */
+  top: 0;            /* Stick to 0px from the TOP of the screen */
+  left: 0;           /* Stretch from the LEFT edge... */
+  right: 0;          /* ...to the RIGHT edge */
+  z-index: 100;      /* Stay above all other elements */
+
+  /* ── Dimensions ── */
+  height: var(--top-bar-h);  /* Exact height so body padding-top matches */
+
+  /* ── Glass morphism background ──
+     This creates the frosted glass look:
+     - The background is semi-transparent (rgba black)
+     - backdrop-filter blurs whatever is BEHIND the element
+     Together they create a "frosted glass over content" effect. */
+  background: rgba(8, 8, 8, 0.88);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+
+  /* A very thin bottom border, barely visible — adds definition */
+  border-bottom: 0.5px solid var(--white4);
+
+  /* ── Layout: distribute icons evenly ── */
+  display: flex;
+  align-items: center;         /* Vertically center items */
+  justify-content: space-between; /* Push items to edges, space between */
+  padding: 0 var(--page-pad);
+}
+
+/* The brand wordmark on the left */
+.top-bar__brand {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  color: var(--white);
+  text-decoration: none;
+  /* Prevent the brand from shrinking if space is tight */
+  flex-shrink: 0;
+}
+.top-bar__brand span {
+  color: var(--accent); /* Gold "A" */
+}
+
+/* Container for the action icons on the right */
+.top-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Small gap between icon buttons */
+}
+
+/* ── Individual icon button in the top bar ──
+   These are the Dashboard / Add Product / Orders / Logout icons */
+.top-bar__btn {
+  /* Size and shape */
+  width: 40px;
+  height: 40px;
+  border-radius: var(--btn-radius);
+  border: none;
+
+  /* Transparent by default — only shows on hover */
+  background: transparent;
+  color: var(--white3);
+
+  /* Center the icon inside */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  /* Smooth colour transition when hovering */
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.2s var(--ease-bounce);
+}
+
+/* When you hover over a top bar button */
+.top-bar__btn:hover {
+  background: var(--white5);  /* Very subtle white tint background */
+  color: var(--white);         /* Icon becomes full white */
+  transform: translateY(-1px); /* Lifts up by 1px — tiny but satisfying */
+}
+
+/* When you actually click a top bar button */
+.top-bar__btn:active {
+  transform: scale(0.92);      /* Shrinks slightly to feel "pressed" */
+  background: var(--white4);
+}
+
+/* The "active" page state — which section is currently open */
+.top-bar__btn.is-active {
+  color: var(--accent);        /* Gold colour for the active icon */
+  background: var(--accent-dim); /* Very faint gold background */
+}
+
+/* Lucide icons inside buttons — control the SVG size */
+.top-bar__btn i,
+.top-bar__btn [data-lucide] {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.75; /* Thinner stroke = more elegant on dark backgrounds */
+}
+
+/* ── Logout button gets a red hover (destructive action) ── */
+.top-bar__btn--logout:hover {
+  color: var(--red);
+  background: rgba(255, 59, 48, 0.1);
+}
+
+/* ================================================================
+   SECTION 4: MAIN CONTENT AREA
+================================================================ */
+.main {
+  /* All content panels live inside here */
+  padding: 28px var(--page-pad) 0;
+  /* Max width so it doesn't stretch too wide on desktop */
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* ── Page panel (each tab is one .panel) ── */
+.panel {
+  /* Hidden by default — JS will add .panel--active to show one */
+  display: none;
+  /* Fade in when shown */
+  animation: panelReveal 0.3s var(--ease-out) both;
+}
+
+.panel--active {
+  display: block; /* Shown when this tab is selected */
+}
+
+@keyframes panelReveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── Panel header ── */
+.panel__header {
+  margin-bottom: 28px;
+}
+.panel__eyebrow {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.panel__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: var(--fs-display);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--white);
+}
+.panel__subtitle {
+  font-size: var(--fs-small);
+  color: var(--white3);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+/* ================================================================
+   SECTION 5: CARDS
+   Generic card component used for orders, products, etc.
+================================================================ */
+.card {
+  background: var(--black2);
+  border: 0.5px solid var(--white4);
+  border-radius: var(--card-radius);
+  overflow: hidden; /* Clips children to the rounded corners */
+
+  /* Smooth hover effect */
+  transition: border-color 0.2s ease, transform 0.25s var(--ease-out);
+}
+
+.card:hover {
+  border-color: var(--white4); /* Slightly brighter border on hover */
+  /* Note: we DON'T use box-shadow here — on a black bg, lift via border looks cleaner */
+}
+
+.card__body {
+  padding: 20px;
+}
+
+.card__body + .card__body {
+  /* Divider between card sections */
+  border-top: 0.5px solid var(--white4);
+}
+
+/* ── Section title above a group of cards ── */
+.section-label {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--white3);
+  margin-bottom: 14px;
+  margin-top: 32px;
+}
+
+.section-label:first-child {
+  margin-top: 0; /* No top margin for the very first label */
+}
+
+/* ================================================================
+   SECTION 6: FULL-WIDTH PROGRESS BAR STATS
+   ────────────────────────────────────────────────────────────────
+   This replaces the old "small square boxes" with wide horizontal
+   bars that use the full width of the screen.
+
+   Each stat item has:
+     - A label on the left
+     - A large number (the value)
+     - A full-width bar that fills proportionally
+     - A small percentage change indicator
+
+   The bar itself is built with two divs:
+     .stat-bar__track  = the grey background rail
+     .stat-bar__fill   = the coloured bar on top, width set by inline style
+================================================================ */
+.stat-bar {
+  padding: 18px 0;
+  border-bottom: 0.5px solid var(--white4);
+  /* Animate entry — each bar slides in with a small delay */
+  animation: slideInLeft 0.5s var(--ease-out) both;
+}
+
+/* Remove border from the last item in a group */
+.stat-bar:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Stagger the animation for each bar (set via inline style or :nth-child) */
+.stat-bar:nth-child(1) { animation-delay: 0.05s; }
+.stat-bar:nth-child(2) { animation-delay: 0.10s; }
+.stat-bar:nth-child(3) { animation-delay: 0.15s; }
+.stat-bar:nth-child(4) { animation-delay: 0.20s; }
+.stat-bar:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+
+/* Top row: label + value + change pill */
+.stat-bar__top {
+  display: flex;
+  align-items: baseline; /* Align text baselines for clean look */
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+
+.stat-bar__label {
+  font-size: var(--fs-small);
+  font-weight: 400;
+  color: var(--white2);
+  /* Allow label to shrink if needed but not grow */
+  flex-shrink: 1;
+  min-width: 0; /* Allows text-overflow to work on flex children */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-bar__value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.55rem;
+  font-weight: 300;
+  color: var(--white);
+  /* Don't let the big number wrap or shrink — it's the star */
+  flex-shrink: 0;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* The small ▲+12% or ▼-3% pill */
+.stat-bar__change {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: var(--pill-radius);
+  flex-shrink: 0;
+}
+.stat-bar__change--up {
+  background: rgba(52, 199, 89, 0.12); /* Transparent green bg */
+  color: var(--green);
+}
+.stat-bar__change--down {
+  background: rgba(255, 59, 48, 0.1);  /* Transparent red bg */
+  color: var(--red);
+}
+.stat-bar__change--neutral {
+  background: var(--white5);
+  color: var(--white3);
+}
+
+/* ── The progress bar track (the background rail) ──
+   This is the full-width grey container that the fill sits inside. */
+.stat-bar__track {
+  width: 100%;            /* Always full width of its parent */
+  height: 3px;            /* Thin line — elegant, not chunky */
+  background: var(--white4); /* Very faint white — the "empty" part */
+  border-radius: var(--pill-radius);
+  overflow: hidden;       /* Clip the fill bar to this shape */
+  position: relative;
+}
+
+/* ── The progress bar fill (the coloured part) ──
+   Its width is set by inline style in the HTML:
+   style="width: 72%"  ← this percentage comes from your data
+   The transition makes it animate smoothly when the value changes. */
+.stat-bar__fill {
+  height: 100%;
+  border-radius: var(--pill-radius);
+  background: var(--accent); /* Champagne gold by default */
+
+  /* Animate the width change — creates the "filling up" effect */
+  transition: width 0.9s var(--ease-out);
+
+  /* Start at 0 width — JS sets the real width after load */
+  /* (Or set via inline style for static demos) */
+}
+
+/* Colour variants for different bar types */
+.stat-bar__fill--green  { background: var(--green); }
+.stat-bar__fill--amber  { background: var(--amber); }
+.stat-bar__fill--red    { background: var(--red); }
+.stat-bar__fill--accent { background: var(--accent); }
+.stat-bar__fill--white  { background: var(--white2); }
+
+/* ── Sub-label below the bar (e.g. "vs last month") ── */
+.stat-bar__sub {
+  font-size: var(--fs-micro);
+  color: var(--white3);
+  margin-top: 7px;
+  letter-spacing: 0.04em;
+}
+
+
+/* ================================================================
+   SECTION 7: QUICK-STAT ROW
+   Three small horizontal "chip" stats that sit side by side.
+   These replace the old small square boxes.
+================================================================ */
+.quick-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Always 3 equal columns */
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.quick-stat {
+  background: var(--black2);
+  border: 0.5px solid var(--white4);
+  border-radius: var(--card-radius);
+  padding: 16px 14px;
+  /* Center-align everything inside */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  /* Stagger animation */
+  animation: fadeUp 0.4s var(--ease-out) both;
+}
+.quick-stat:nth-child(1) { animation-delay: 0.0s; }
+.quick-stat:nth-child(2) { animation-delay: 0.05s; }
+.quick-stat:nth-child(3) { animation-delay: 0.1s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.quick-stat__icon {
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.quick-stat__value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.6rem;
+  font-weight: 300;
+  color: var(--white);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.quick-stat__label {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--white3);
+}
+
+
+/* ================================================================
+   SECTION 8: ORDER + PRODUCT LIST ITEMS
+================================================================ */
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--white4);
+  /* Subtle reveal animation */
+  animation: fadeUp 0.4s var(--ease-out) both;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Thumbnail / avatar on the left */
+.list-item__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--black3);
+  border: 0.5px solid var(--white4);
+  overflow: hidden;
+  flex-shrink: 0;
+  /* Center placeholder icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.list-item__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Text content in the middle */
+.list-item__body {
+  flex: 1;       /* Takes all remaining space */
+  min-width: 0;  /* Allows text truncation inside flex */
+}
+
+.list-item__title {
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--white);
+  margin-bottom: 3px;
+  /* Truncate long names with ellipsis */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-item__meta {
+  font-size: var(--fs-micro);
+  letter-spacing: 0.04em;
+  color: var(--white3);
+  line-height: 1.5;
+}
+
+/* Right-side action area (price, status badge, arrow) */
+.list-item__right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.list-item__price {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--white);
+  letter-spacing: 0.01em;
+}
+
+
+/* ================================================================
+   SECTION 9: STATUS BADGES
+   Small coloured pills for order/stock status
+================================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--pill-radius);
+}
+
+/* Dot indicator inside badge */
+.badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.badge--pending  { background: rgba(255,159,10, 0.12); color: var(--amber); }
+.badge--confirmed{ background: rgba(52,199,89, 0.12);  color: var(--green); }
+.badge--shipped  { background: rgba(245,245,245,0.08); color: var(--white2); }
+.badge--low      { background: rgba(255,159,10, 0.12); color: var(--amber); }
+.badge--out      { background: rgba(255,59,48, 0.10);  color: var(--red);   }
+
+
+/* ================================================================
+   SECTION 10: BUTTONS
+================================================================ */
+
+/* ── Primary CTA button ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 24px;
+  background: var(--white);     /* White button on black = high contrast */
+  color: var(--black);          /* Black text */
+  border: none;
+  border-radius: var(--btn-radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    transform 0.2s var(--ease-bounce),
+    opacity 0.18s ease;
+}
+
+.btn-primary:hover {
+  background: var(--accent);    /* Turns gold on hover */
+  color: var(--black);
+  transform: translateY(-2px);  /* Lifts up — feels clickable */
+}
+
+.btn-primary:active {
+  transform: scale(0.97);       /* Pressed feel */
+  opacity: 0.88;
+}
+
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Ghost / secondary button ── */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  color: var(--white2);
+  border: 0.5px solid var(--white4);
+  border-radius: var(--btn-radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: var(--fs-small);
+  font-weight: 400;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    background 0.18s ease,
+    transform 0.2s var(--ease-bounce);
+}
+
+.btn-ghost:hover {
+  border-color: var(--white2);
+  color: var(--white);
+  background: var(--white5);
+  transform: translateY(-1px);
+}
+
+.btn-ghost:active {
+  transform: scale(0.97);
+}
+
+/* ── Destructive button (delete/logout) ── */
+.btn-danger {
+  background: rgba(255,59,48,0.1);
+  color: var(--red);
+  border: 0.5px solid rgba(255,59,48,0.2);
+}
+.btn-danger:hover {
+  background: rgba(255,59,48,0.18);
+  border-color: rgba(255,59,48,0.4);
+  color: var(--red);
+  transform: translateY(-1px);
+}
+
+/* ── Small inline icon+text button ── */
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--white5);
+  color: var(--white2);
+  border: 0.5px solid var(--white4);
+  border-radius: var(--btn-radius);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-sm:hover {
+  background: var(--white4);
+  color: var(--white);
+  border-color: var(--white4);
+}
+.btn-sm:active { transform: scale(0.95); }
+
+/* ── FAB (Floating Action Button) — the "+" button ── */
+.fab {
+  position: fixed;   /* Floats above everything */
+  bottom: calc(var(--bot-bar-h) + 16px); /* Sits just above the bottom bar */
+  right: var(--page-pad);
+  z-index: 90;       /* Below the bars (z-index 100) but above content */
+
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--black);
+  border: none;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.4),  /* Depth shadow */
+    0 0 0 0.5px var(--white4);   /* Thin border via box-shadow */
+
+  transition:
+    background 0.2s ease,
+    transform 0.3s var(--ease-bounce),
+    box-shadow 0.2s ease;
+}
+
+.fab:hover {
+  background: var(--accent);
+  transform: scale(1.08) rotate(90deg); /* Spin the + on hover */
+  box-shadow: 0 8px 32px rgba(232,213,176,0.25);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+.fab [data-lucide] {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2;
+}
+
+
+/* ================================================================
+   SECTION 11: BOTTOM NAVIGATION BAR  ← THE "TIKTOK BAR"
+   ────────────────────────────────────────────────────────────────
+   HOW IT STAYS STUCK TO THE BOTTOM:
+
+   position: fixed
+     → Same as the top bar — removes it from page flow,
+       floats it above all content.
+
+   bottom: 0
+     → Pins it to 0px from the BOTTOM of the VIEWPORT (screen).
+       When you scroll up, the bar stays at the bottom because
+       it's measured from the screen edge, not the page.
+
+   left: 0 / right: 0
+     → Stretches it edge-to-edge.
+
+   z-index: 100
+     → Same level as the top bar — floats above all content.
+
+   The KEY difference from the top bar:
+     - Top bar uses:    top: 0;
+     - Bottom bar uses: bottom: 0;
+   That single word change is what makes one stick to the
+   top vs the bottom. Everything else is the same!
+================================================================ */
+.bottom-bar {
+  /* ── THE FIXED POSITIONING ── */
+  position: fixed;    /* Floats — does not scroll with page content */
+  bottom: 0;          /* Stick to 0px from the BOTTOM of the screen */
+  left: 0;            /* Stretch from the LEFT edge... */
+  right: 0;           /* ...to the RIGHT edge */
+  z-index: 100;       /* Floats above all page content */
+
+  /* ── Dimensions ── */
+  height: var(--bot-bar-h);
+
+  /*
+    ── Safe area inset for iPhone home bar ──
+    Modern iPhones without a home button have a horizontal
+    "home indicator" bar at the very bottom. If we don't
+    account for it, our nav tabs will be hidden behind it.
+
+    env(safe-area-inset-bottom) returns the height of that zone.
+    We add padding-bottom equal to that height so our icons
+    sit above it, not behind it.
+
+    On devices without a home bar, this value is 0 — no effect.
+  */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Glass background (same technique as top bar) ── */
+  background: rgba(8, 8, 8, 0.92);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+
+  /* Thin top border for visual separation */
+  border-top: 0.5px solid var(--white4);
+
+  /* ── Layout: evenly distribute the 3 nav items ── */
+  display: flex;
+  align-items: center;
+  justify-content: space-around; /* Equal space AROUND each item */
+}
+
+/* ── Individual bottom nav tab ── */
+.bottom-bar__tab {
+  /* Takes equal share of available width */
+  flex: 1;
+  max-width: 80px; /* Cap width on wide screens */
+
+  /* Stack icon above label */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  /* Sizing */
+  height: 100%;
+  padding-bottom: 4px; /* Slight down push to visually center in bar */
+
+  /* Styles */
+  border: none;
+  background: transparent;
+  color: var(--white3);
+  cursor: pointer;
+
+  /* Smooth colour and position transitions */
+  transition:
+    color 0.2s ease,
+    transform 0.25s var(--ease-bounce);
+
+  /* Make the whole tab area tappable (important on mobile) */
+  position: relative;
+}
+
+/* Hover state — tab brightens */
+.bottom-bar__tab:hover {
+  color: var(--white2);
+  transform: translateY(-2px); /* Slight upward float */
+}
+
+/* Active / selected tab */
+.bottom-bar__tab.is-active {
+  color: var(--white); /* Full white when selected */
+}
+
+/* Pressed state */
+.bottom-bar__tab:active {
+  transform: scale(0.93) translateY(-1px);
+}
+
+/* ── Active indicator: thin line above the active tab ──
+   This is the "TikTok style" active marker.
+   ::before creates a pseudo-element above the tab icon. */
+.bottom-bar__tab.is-active::before {
+  content: '';
+  position: absolute;
+  top: 0;                /* Sits at the very top of the tab */
+  left: 50%;
+  transform: translateX(-50%); /* Center it horizontally */
+  width: 24px;
+  height: 2px;
+  background: var(--white);
+  border-radius: var(--pill-radius);
+  /* The indicator fades in when tab becomes active */
+  animation: indicatorIn 0.3s var(--ease-out) both;
+}
+
+@keyframes indicatorIn {
+  from { width: 0; opacity: 0; }
+  to   { width: 24px; opacity: 1; }
+}
+
+/* The Lucide icon inside each tab */
+.bottom-bar__tab [data-lucide] {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.6; /* Thin strokes = more premium */
+  transition: transform 0.25s var(--ease-bounce);
+}
+
+/* Active icon gets slightly larger */
+.bottom-bar__tab.is-active [data-lucide] {
+  transform: scale(1.1);
+}
+
+/* The text label below the icon */
+.bottom-bar__label {
+  font-size: 0.48rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+  /* Transition colour with the parent */
+  transition: color 0.2s ease;
+}
+
+
+/* ================================================================
+   SECTION 12: FORM ELEMENTS (for Add Product, Settings panels)
+================================================================ */
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--white3);
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  background: var(--black3);
+  border: 0.5px solid var(--white4);
+  border-radius: var(--btn-radius);
+  padding: 13px 16px;
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: var(--fs-body);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  /* Prevent inputs from overflowing on mobile */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: rgba(245,245,245,0.3); /* Brightens on focus */
+  box-shadow: 0 0 0 3px rgba(245,245,245,0.04); /* Subtle outer glow */
+}
+
+/* Placeholder text colour */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--white3);
+}
+
+.form-group select option {
+  background: var(--black2); /* Dark options dropdown */
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.6;
+}
+
+/* Two-column form grid (stacks to 1 col on mobile) */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.form-grid .form-group--full {
+  grid-column: 1 / -1; /* Span both columns */
+}
+
+/* Spacing utility between form sections */
+.form-divider {
+  height: 0.5px;
+  background: var(--white4);
+  margin: 24px 0;
+}
+
+
+/* ================================================================
+   SECTION 13: SETTINGS — WALLET / BANK INFO CARD
+================================================================ */
+.bank-card {
+  background: linear-gradient(
+    135deg,
+    rgba(232,213,176,0.1) 0%,  /* Faint gold top-left */
+    rgba(245,245,245,0.04) 100% /* Near-transparent bottom-right */
+  );
+  border: 0.5px solid rgba(232,213,176,0.2); /* Gold-tinted border */
+  border-radius: var(--card-radius);
+  padding: 22px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative circle in the top-right corner (purely visual) */
+.bank-card::after {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(232,213,176,0.05);
+  top: -40px;
+  right: -40px;
+  pointer-events: none; /* Don't block clicks */
+}
+
+.bank-card__label {
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+
+.bank-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 0.5px solid rgba(245,245,245,0.06);
+}
+.bank-card__row:last-of-type {
+  border-bottom: none;
+}
+
+.bank-card__key {
+  font-size: var(--fs-small);
+  color: var(--white3);
+}
+
+.bank-card__val {
+  font-size: var(--fs-small);
+  font-weight: 500;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Copy button inside bank info */
+.copy-btn {
+  background: var(--white5);
+  border: 0.5px solid var(--white4);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--white3);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.18s ease;
+}
+.copy-btn:hover {
+  color: var(--accent);
+  border-color: rgba(232,213,176,0.3);
+  background: rgba(232,213,176,0.06);
+}
+.copy-btn:active { transform: scale(0.95); }
+
+
+/* ================================================================
+   SECTION 14: TOAST NOTIFICATION
+================================================================ */
+.toast {
+  position: fixed;
+  bottom: calc(var(--bot-bar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 200;
+
+  background: var(--black2);
+  border: 0.5px solid var(--white4);
+  border-radius: 40px;
+  padding: 11px 20px;
+
+  font-size: var(--fs-small);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--white2);
+
+  white-space: nowrap;
+  pointer-events: none;
+
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s var(--ease-out);
+}
+
+.toast.toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.toast--success { color: var(--green); border-color: rgba(52,199,89,0.25); }
+.toast.toast--error   { color: var(--red);   border-color: rgba(255,59,48,0.25);  }
+.toast.toast--gold    { color: var(--accent); border-color: rgba(232,213,176,0.25); }
+
+
+/* ================================================================
+   SECTION 15: EMPTY STATE
+================================================================ */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.empty-state__icon {
+  font-size: 2.4rem;
+  margin-bottom: 14px;
+  opacity: 0.4;
+}
+
+.empty-state__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem;
+  font-weight: 300;
+  color: var(--white2);
+  margin-bottom: 8px;
+}
+
+.empty-state__sub {
+  font-size: var(--fs-small);
+  color: var(--white3);
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+
+
+/* ================================================================
+   SECTION 16: UTILITY CLASSES
+   Small helper classes you can add to any element
+================================================================ */
+.mt-0  { margin-top: 0; }
+.mt-12 { margin-top: 12px; }
+.mt-20 { margin-top: 20px; }
+.mt-28 { margin-top: 28px; }
+.mb-0  { margin-bottom: 0; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+
+.text-accent { color: var(--accent); }
+.text-muted  { color: var(--white3); }
+.text-green  { color: var(--green); }
+.text-red    { color: var(--red); }
+
+.w-full { width: 100%; }
+
+/* Divider line */
+.divider {
+  height: 0.5px;
+  background: var(--white4);
+  margin: 20px 0;
+}
+
+
+/* ================================================================
+   SECTION 17: RESPONSIVE ADJUSTMENTS
+   Mobile-first means we write for small screens by default above,
+   then use min-width to adjust for bigger screens.
+================================================================ */
+@media (min-width: 480px) {
+  :root {
+    --page-pad: 28px; /* More breathing room on wider phones */
+  }
+  .quick-stats {
+    /* On wider screens, quick stats can be a bit wider */
+    gap: 12px;
+  }
+}
+
+@media (min-width: 680px) {
+  :root {
+    --page-pad: 36px;
+  }
+  .form-grid {
+    /* Two-column form only kicks in above 480px */
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Stack form grid to 1 column on small phones */
+@media (max-width: 400px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .quick-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .quick-stat {
+    padding: 13px 10px;
+  }
+  .quick-stat__value {
+    font-size: 1.35rem;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+     TOP NAVIGATION BAR
+     Sticky at the top. Icons only. Evenly spaced.
+     JS will toggle .is-active on the correct button.
+================================================================ -->
+<header class="top-bar" role="banner">
+
+  <!-- Brand wordmark — tapping takes admin back to Overview -->
+  <a class="top-bar__brand" href="#" onclick="showPanel('overview')">
+    <span>A</span>URA
+  </a>
+
+  <!-- Icon actions — right side -->
+  <div class="top-bar__actions" role="navigation" aria-label="Admin actions">
+
+    <!--
+      Each button has:
+       data-panel="xxx"  → which panel to show when clicked (Stage 3 JS uses this)
+       aria-label        → screen reader description (accessibility)
+       title             → tooltip on hover (helpful for icons-only UI)
+    -->
+
+    <!-- Dashboard / Overview -->
+    <button
+      class="top-bar__btn is-active"
+      data-panel="overview"
+      aria-label="Dashboard overview"
+      title="Overview"
+      onclick="showPanel('overview')"
+    >
+      <i data-lucide="layout-dashboard"></i>
+    </button>
+
+    <!-- Add Product -->
+    <button
+      class="top-bar__btn"
+      data-panel="add-product"
+      aria-label="Add new product"
+      title="Add Product"
+      onclick="showPanel('add-product')"
+    >
+      <i data-lucide="plus-circle"></i>
+    </button>
+
+    <!-- Order Status -->
+    <button
+      class="top-bar__btn"
+      data-panel="orders"
+      aria-label="Order status"
+      title="Orders"
+      onclick="showPanel('orders')"
+    >
+      <i data-lucide="shopping-bag"></i>
+    </button>
+
+    <!-- Logout — red hover (destructive) -->
+    <button
+      class="top-bar__btn top-bar__btn--logout"
+      aria-label="Log out"
+      title="Log out"
+      onclick="handleLogout()"
+    >
+      <i data-lucide="log-out"></i>
+    </button>
+
+  </div>
+</header>
+
+
+<!-- ================================================================
+     MAIN CONTENT AREA
+     All panels live here. Only one is .panel--active at a time.
+     JS toggles which one is visible.
+================================================================ -->
+<main class="main" id="main-content">
+
+
+  <!-- ============================================================
+       PANEL 1: OVERVIEW / DASHBOARD
+       Shows: quick stat chips + full-width progress bar analytics
+  ============================================================ -->
+  <section class="panel panel--active" id="panel-overview" aria-labelledby="overview-title">
+
+    <div class="panel__header">
+      <p class="panel__eyebrow">Good morning</p>
+      <h1 class="panel__title" id="overview-title">Dashboard</h1>
+      <p class="panel__subtitle">Here's what's happening with your store today.</p>
+    </div>
+
+    <!-- ── Quick-stat chips: 3 side-by-side horizontal cards ──
+         These replace the old small square boxes entirely.
+         They're wider, breathe more, and each has an icon. -->
+    <div class="quick-stats" aria-label="Key statistics">
+
+      <div class="quick-stat">
+        <span class="quick-stat__icon">📦</span>
+        <span class="quick-stat__value" id="stat-products">24</span>
+        <span class="quick-stat__label">Products</span>
+      </div>
+
+      <div class="quick-stat">
+        <span class="quick-stat__icon">🛒</span>
+        <span class="quick-stat__value" id="stat-orders">87</span>
+        <span class="quick-stat__label">Orders</span>
+      </div>
+
+      <div class="quick-stat">
+        <span class="quick-stat__icon">👤</span>
+        <span class="quick-stat__value" id="stat-customers">142</span>
+        <span class="quick-stat__label">Customers</span>
+      </div>
+
+    </div>
+
+
+    <!-- ── Full-width progress bar analytics ──────────────────
+         Each .stat-bar item has:
+           - A label + big number on top
+           - A thin progress bar filling proportionally below
+           - A change indicator pill (▲ or ▼)
+
+         The bar width is set inline (style="width: XX%").
+         In Stage 3, JS will calculate and set these values
+         based on real Firestore data.
+    -->
+    <p class="section-label">Performance</p>
+
+    <div class="card" aria-label="Sales analytics">
+      <div class="card__body">
+
+        <!-- Monthly Sales -->
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Monthly Sales</span>
+            <span class="stat-bar__value" id="bar-monthly-sales">₦ 2.4M</span>
+            <span class="stat-bar__change stat-bar__change--up">▲ 18%</span>
+          </div>
+          <!-- Bar width = (this month / best month) × 100% -->
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--accent" style="width: 78%"></div>
+          </div>
+          <p class="stat-bar__sub">vs ₦ 2.0M last month</p>
+        </div>
+
+        <!-- Total Orders -->
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Total Orders</span>
+            <span class="stat-bar__value" id="bar-total-orders">87</span>
+            <span class="stat-bar__change stat-bar__change--up">▲ 12%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--green" style="width: 62%"></div>
+          </div>
+          <p class="stat-bar__sub">73 fulfilled · 14 pending</p>
+        </div>
+
+        <!-- Confirmed Rate -->
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Confirmation Rate</span>
+            <span class="stat-bar__value" id="bar-confirm-rate">84%</span>
+            <span class="stat-bar__change stat-bar__change--up">▲ 4%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--accent" style="width: 84%"></div>
+          </div>
+          <p class="stat-bar__sub">Orders confirmed vs total</p>
+        </div>
+
+        <!-- Avg Order Value -->
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Avg Order Value</span>
+            <span class="stat-bar__value" id="bar-avg-order">₦ 28k</span>
+            <span class="stat-bar__change stat-bar__change--down">▼ 2%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--white" style="width: 45%"></div>
+          </div>
+          <p class="stat-bar__sub">Per confirmed order</p>
+        </div>
+
+        <!-- Inventory Health -->
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Inventory Health</span>
+            <span class="stat-bar__value" id="bar-inventory">91%</span>
+            <span class="stat-bar__change stat-bar__change--neutral">— 0%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--green" style="width: 91%"></div>
+          </div>
+          <p class="stat-bar__sub">Items with stock &gt; 0</p>
+        </div>
+
+      </div><!-- /.card__body -->
+    </div><!-- /.card -->
+
+
+    <!-- ── Category breakdown bars ── -->
+    <p class="section-label mt-28">Sales by Category</p>
+    <div class="card">
+      <div class="card__body">
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Clothes</span>
+            <span class="stat-bar__value">38%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--accent" style="width: 38%"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Shoes</span>
+            <span class="stat-bar__value">27%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--white" style="width: 27%"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Bags</span>
+            <span class="stat-bar__value">19%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--white" style="width: 19%"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Accessories</span>
+            <span class="stat-bar__value">16%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--white" style="width: 16%"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ── Recent Orders ── -->
+    <p class="section-label mt-28">Recent Orders</p>
+    <div class="card">
+      <div class="card__body">
+
+        <!-- Order item 1 -->
+        <div class="list-item">
+          <div class="list-item__thumb">🛍</div>
+          <div class="list-item__body">
+            <div class="list-item__title">Amara Okafor</div>
+            <div class="list-item__meta">ORD-A1B2C · Lagos, NG · 2 items</div>
+          </div>
+          <div class="list-item__right">
+            <span class="list-item__price">₦ 54,000</span>
+            <span class="badge badge--pending">Pending</span>
+          </div>
+        </div>
+
+        <!-- Order item 2 -->
+        <div class="list-item">
+          <div class="list-item__thumb">🛍</div>
+          <div class="list-item__body">
+            <div class="list-item__title">Zara Williams</div>
+            <div class="list-item__meta">ORD-D3E4F · Nairobi, KE · 1 item</div>
+          </div>
+          <div class="list-item__right">
+            <span class="list-item__price">KSh 4,200</span>
+            <span class="badge badge--confirmed">Confirmed</span>
+          </div>
+        </div>
+
+        <!-- Order item 3 -->
+        <div class="list-item">
+          <div class="list-item__thumb">🛍</div>
+          <div class="list-item__body">
+            <div class="list-item__title">Sipho Dlamini</div>
+            <div class="list-item__meta">ORD-G5H6I · Durban, ZA · 3 items</div>
+          </div>
+          <div class="list-item__right">
+            <span class="list-item__price">R 890</span>
+            <span class="badge badge--shipped">Shipped</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </section><!-- /#panel-overview -->
+
+
+  <!-- ============================================================
+       PANEL 2: ADD PRODUCT
+       Stage 3 will wire up the form submission.
+  ============================================================ -->
+  <section class="panel" id="panel-add-product" aria-labelledby="add-product-title">
+
+    <div class="panel__header">
+      <p class="panel__eyebrow">Inventory</p>
+      <h1 class="panel__title" id="add-product-title">Add Product</h1>
+      <p class="panel__subtitle">Fill in the details below to list a new item.</p>
+    </div>
+
+    <!-- Product form — no action/onsubmit yet (Stage 3) -->
+    <form id="add-product-form" onsubmit="return false;">
+
+      <!-- Product image upload zone -->
+      <div class="form-group mb-24">
+        <label>Product Image</label>
+        <div
+          id="img-upload-zone"
+          style="
+            border: 1px dashed rgba(245,245,245,0.15);
+            border-radius: var(--card-radius);
+            height: 160px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s ease, background 0.2s ease;
+          "
+          onmouseover="this.style.borderColor='rgba(245,245,245,0.3)';this.style.background='rgba(245,245,245,0.02)'"
+          onmouseout="this.style.borderColor='rgba(245,245,245,0.15)';this.style.background='transparent'"
+        >
+          <!-- Hidden file input — clicking the zone triggers it -->
+          <input
+            type="file"
+            id="product-img-input"
+            accept="image/*"
+            style="position:absolute;inset:0;opacity:0;cursor:pointer;"
+          />
+          <i data-lucide="image-plus" style="width:28px;height:28px;color:var(--white3);stroke-width:1.5;"></i>
+          <span style="font-size:var(--fs-small);color:var(--white3);">Tap to upload image</span>
+          <!-- Preview image shown after selection -->
+          <img id="product-img-preview" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:var(--card-radius);" alt="Product preview"/>
+        </div>
+      </div>
+
+      <div class="form-grid">
+
+        <!-- Product name -->
+        <div class="form-group form-group--full">
+          <label for="product-name">Product Name *</label>
+          <input type="text" id="product-name" placeholder="e.g. Eclipse Jacket" required/>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+          <label for="product-category">Category</label>
+          <select id="product-category">
+            <option value="clothes">Clothes</option>
+            <option value="shoes">Shoes</option>
+            <option value="bags">Bags</option>
+            <option value="accessories">Accessories</option>
+            <option value="new-arrivals">New Arrivals</option>
+            <option value="collections">Collections</option>
+          </select>
+        </div>
+
+        <!-- Price -->
+        <div class="form-group">
+          <label for="product-price">Price (USD) *</label>
+          <input type="number" id="product-price" placeholder="280" min="0" step="0.01" required/>
+        </div>
+
+        <!-- Stock -->
+        <div class="form-group">
+          <label for="product-stock">Stock Qty</label>
+          <input type="number" id="product-stock" placeholder="20" min="0"/>
+        </div>
+
+        <!-- Discount -->
+        <div class="form-group">
+          <label for="product-discount">Discount %</label>
+          <input type="number" id="product-discount" placeholder="0" min="0" max="100"/>
+        </div>
+
+        <!-- Description -->
+        <div class="form-group form-group--full">
+          <label for="product-desc">Description</label>
+          <textarea id="product-desc" placeholder="Describe the product…"></textarea>
+        </div>
+
+      </div><!-- /.form-grid -->
+
+      <!-- Sizes -->
+      <div class="form-group">
+        <label>Available Sizes</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;" id="size-chips">
+          <!-- Each chip toggles .is-selected via JS in Stage 3 -->
+          <button type="button" class="btn-sm size-chip">XS</button>
+          <button type="button" class="btn-sm size-chip">S</button>
+          <button type="button" class="btn-sm size-chip">M</button>
+          <button type="button" class="btn-sm size-chip">L</button>
+          <button type="button" class="btn-sm size-chip">XL</button>
+          <button type="button" class="btn-sm size-chip">XXL</button>
+          <button type="button" class="btn-sm size-chip">One Size</button>
+        </div>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <!-- Submit button — disabled state shown below too -->
+      <button type="submit" class="btn-primary" id="save-product-btn">
+        <i data-lucide="save" style="width:17px;height:17px;stroke-width:2;"></i>
+        Save Product
+      </button>
+
+    </form>
+
+  </section><!-- /#panel-add-product -->
+
+
+  <!-- ============================================================
+       PANEL 3: ORDERS
+  ============================================================ -->
+  <section class="panel" id="panel-orders" aria-labelledby="orders-title">
+
+    <div class="panel__header">
+      <p class="panel__eyebrow">Fulfilment</p>
+      <h1 class="panel__title" id="orders-title">Orders</h1>
+      <p class="panel__subtitle">Tap any order to view the payment screenshot.</p>
+    </div>
+
+    <!-- Filter row -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;" id="order-filters">
+      <button class="btn-sm is-active-filter" onclick="filterOrders('all')"    style="flex-shrink:0;">All</button>
+      <button class="btn-sm"                  onclick="filterOrders('pending')" style="flex-shrink:0;">Pending</button>
+      <button class="btn-sm"                  onclick="filterOrders('confirmed')" style="flex-shrink:0;">Confirmed</button>
+      <button class="btn-sm"                  onclick="filterOrders('shipped')" style="flex-shrink:0;">Shipped</button>
+    </div>
+
+    <!-- Orders list — Stage 3 will populate this from Firestore -->
+    <div id="orders-list">
+
+      <!-- Order card example — Stage 3 generates these dynamically -->
+      <div class="card mb-16" style="cursor:pointer;" onclick="viewOrder('ORD-A1B2C')">
+        <div class="card__body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <p style="font-size:var(--fs-micro);letter-spacing:0.14em;text-transform:uppercase;color:var(--white3);margin-bottom:5px;">ORD-A1B2C · 28 Jun 2026</p>
+              <p style="font-size:var(--fs-body);font-weight:500;margin-bottom:4px;">Amara Okafor</p>
+              <p style="font-size:var(--fs-small);color:var(--white3);line-height:1.6;">
+                📞 +234 801 234 5678<br>
+                📍 Lagos, Nigeria · 2 items
+              </p>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;">
+              <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;">₦ 54,000</span>
+              <span class="badge badge--pending">Pending</span>
+            </div>
+          </div>
+          <!-- Status update selector -->
+          <div style="margin-top:14px;display:flex;gap:8px;align-items:center;">
+            <select
+              style="flex:1;background:var(--black3);border:0.5px solid var(--white4);border-radius:var(--btn-radius);padding:9px 12px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:var(--fs-small);outline:none;"
+              onclick="event.stopPropagation()"
+              onchange="updateOrderStatus('ORD-A1B2C', this.value)"
+            >
+              <option value="pending" selected>Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="shipped">Shipped</option>
+            </select>
+            <button class="btn-sm" onclick="event.stopPropagation();viewOrderScreenshot('ORD-A1B2C')">
+              <i data-lucide="image" style="width:14px;height:14px;"></i>
+              Screenshot
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /#orders-list -->
+
+    <!-- Empty state (shown when no orders exist) -->
+    <div class="empty-state" id="orders-empty" style="display:none;">
+      <div class="empty-state__icon">📭</div>
+      <div class="empty-state__title">No orders yet</div>
+      <div class="empty-state__sub">When customers complete checkout, their orders appear here.</div>
+    </div>
+
+  </section><!-- /#panel-orders -->
+
+
+  <!-- ============================================================
+       PANEL 4: ANALYTICS  (bottom bar tab)
+  ============================================================ -->
+  <section class="panel" id="panel-analytics" aria-labelledby="analytics-title">
+
+    <div class="panel__header">
+      <p class="panel__eyebrow">Insights</p>
+      <h1 class="panel__title" id="analytics-title">Analytics</h1>
+      <p class="panel__subtitle">Full breakdown of your store's performance.</p>
+    </div>
+
+    <!-- Revenue bar -->
+    <p class="section-label">Revenue</p>
+    <div class="card">
+      <div class="card__body">
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">This Month</span>
+            <span class="stat-bar__value">₦ 2.4M</span>
+            <span class="stat-bar__change stat-bar__change--up">▲ 18%</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--accent" style="width:78%"></div>
+          </div>
+        </div>
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Last Month</span>
+            <span class="stat-bar__value">₦ 2.0M</span>
+            <span class="stat-bar__change stat-bar__change--neutral">—</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--white" style="width:65%"></div>
+          </div>
+        </div>
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">All Time</span>
+            <span class="stat-bar__value">₦ 12.8M</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--accent" style="width:100%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory health bars -->
+    <p class="section-label mt-28">Inventory Health</p>
+    <div class="card">
+      <div class="card__body">
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Eclipse Jacket</span>
+            <span class="stat-bar__value">18</span>
+            <span class="badge badge--confirmed" style="font-size:0.45rem;padding:3px 8px;">In Stock</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--green" style="width:90%"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Void Sneaker</span>
+            <span class="stat-bar__value">4</span>
+            <span class="badge badge--low" style="font-size:0.45rem;padding:3px 8px;">Low</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--amber" style="width:20%"></div>
+          </div>
+        </div>
+
+        <div class="stat-bar">
+          <div class="stat-bar__top">
+            <span class="stat-bar__label">Obsidian Bag</span>
+            <span class="stat-bar__value">0</span>
+            <span class="badge badge--out" style="font-size:0.45rem;padding:3px 8px;">Out</span>
+          </div>
+          <div class="stat-bar__track">
+            <div class="stat-bar__fill stat-bar__fill--red" style="width:2%"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </section><!-- /#panel-analytics -->
+
+
+  <!-- ============================================================
+       PANEL 5: ACCOUNT SETTINGS  (bottom bar tab)
+  ============================================================ -->
+  <section class="panel" id="panel-settings" aria-labelledby="settings-title">
+
+    <div class="panel__header">
+      <p class="panel__eyebrow">Configuration</p>
+      <h1 class="panel__title" id="settings-title">Settings</h1>
+      <p class="panel__subtitle">Manage your store preferences and profile.</p>
+    </div>
+
+    <!-- Brand info -->
+    <p class="section-label">Brand</p>
+    <div class="card mb-16">
+      <div class="card__body">
+        <div class="form-group">
+          <label for="s-store-name">Store Name</label>
+          <input type="text" id="s-store-name" placeholder="AURA Fashion"/>
+        </div>
+        <div class="form-group">
+          <label for="s-bio">Bio / Tagline</label>
+          <textarea id="s-bio" placeholder="Where fashion meets the future…"></textarea>
+        </div>
+        <button class="btn-ghost w-full" onclick="saveSettingsSection('brand')">Save Brand Info</button>
+      </div>
+    </div>
+
+    <!-- Contact info -->
+    <p class="section-label mt-28">Contact</p>
+    <div class="card mb-16">
+      <div class="card__body">
+        <div class="form-group">
+          <label for="s-whatsapp">WhatsApp Number</label>
+          <input type="tel" id="s-whatsapp" placeholder="+2348012345678"/>
+        </div>
+        <div class="form-group mb-0">
+          <label for="s-contact-email">Contact Email</label>
+          <input type="email" id="s-contact-email" placeholder="hello@aura.store"/>
+        </div>
+        <div class="form-divider"></div>
+        <button class="btn-ghost w-full" onclick="saveSettingsSection('contact')">Save Contact Info</button>
+      </div>
+    </div>
+
+    <!-- Admin credentials -->
+    <p class="section-label mt-28">Admin Account</p>
+    <div class="card mb-16">
+      <div class="card__body">
+        <div class="form-group">
+          <label for="s-adm-email">Admin Email</label>
+          <input type="email" id="s-adm-email" placeholder="admin@aura.store"/>
+        </div>
+        <div class="form-group">
+          <label for="s-curr-pw">Current Password</label>
+          <input type="password" id="s-curr-pw" placeholder="Current password (required)"/>
+        </div>
+        <div class="form-group">
+          <label for="s-new-pw">New Password</label>
+          <input type="password" id="s-new-pw" placeholder="Leave blank to keep current"/>
+        </div>
+        <div class="form-divider"></div>
+        <button class="btn-ghost w-full" onclick="saveSettingsSection('account')">Update Account</button>
+      </div>
+    </div>
+
+    <!-- Danger zone -->
+    <p class="section-label mt-28">Session</p>
+    <div class="card">
+      <div class="card__body">
+        <p style="font-size:var(--fs-small);color:var(--white3);line-height:1.7;margin-bottom:16px;">
+          Signing out will end your current session. You'll need to log back in to access the admin dashboard.
+        </p>
+        <button class="btn-ghost btn-danger w-full" onclick="handleLogout()">
+          <i data-lucide="log-out" style="width:16px;height:16px;stroke-width:2;"></i>
+          Sign Out
+        </button>
+      </div>
+    </div>
+
+  </section><!-- /#panel-settings -->
+
+
+  <!-- ============================================================
+       PANEL 6: WALLET / BANK INFO  (bottom bar tab)
+  ============================================================ -->
+  <section class="panel" id="panel-wallet" aria-labelledby="wallet-title">
+
+    <div class="panel__header">
+      <p class="panel__eyebrow">Finance</p>
+      <h1 class="panel__title" id="wallet-title">Wallet</h1>
+      <p class="panel__subtitle">Your payment details — shown to customers at checkout.</p>
+    </div>
+
+    <!-- Bank account display card -->
+    <div class="bank-card mb-16">
+      <p class="bank-card__label">Primary Account</p>
+      <div class="bank-card__row">
+        <span class="bank-card__key">Bank</span>
+        <span class="bank-card__val" id="wallet-bank-name">GTBank</span>
+      </div>
+      <div class="bank-card__row">
+        <span class="bank-card__key">Account Name</span>
+        <span class="bank-card__val" id="wallet-acc-name">AURA Fashion Ltd</span>
+      </div>
+      <div class="bank-card__row">
+        <span class="bank-card__key">Account Number</span>
+        <span class="bank-card__val">
+          <span id="wallet-acc-num">0123456789</span>
+          <button class="copy-btn" onclick="copyText('0123456789','Account number copied')">Copy</button>
+        </span>
+      </div>
+    </div>
+
+    <!-- Payment link -->
+    <div class="card mb-24">
+      <div class="card__body">
+        <p style="font-size:var(--fs-micro);font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--white3);margin-bottom:12px;">Payment Link (optional)</p>
+        <p style="font-size:var(--fs-small);color:var(--white2);word-break:break-all;" id="wallet-pay-link">https://paystack.com/pay/aura-store</p>
+      </div>
+    </div>
+
+    <!-- Edit form -->
+    <p class="section-label">Update Payment Details</p>
+    <div class="card">
+      <div class="card__body">
+        <div class="form-group">
+          <label for="w-bank-name">Bank Name</label>
+          <input type="text" id="w-bank-name" placeholder="e.g. GTBank"/>
+        </div>
+        <div class="form-group">
+          <label for="w-acc-name">Account Name</label>
+          <input type="text" id="w-acc-name" placeholder="Your name or business name"/>
+        </div>
+        <div class="form-group">
+          <label for="w-acc-num">Account Number</label>
+          <input type="text" id="w-acc-num" placeholder="0123456789" maxlength="20" inputmode="numeric"/>
+        </div>
+        <div class="form-group mb-0">
+          <label for="w-pay-link">Payment Link (optional)</label>
+          <input type="url" id="w-pay-link" placeholder="https://paystack.com/pay/..."/>
+        </div>
+        <div class="form-divider"></div>
+        <button class="btn-primary" onclick="savePaymentDetails()">
+          <i data-lucide="save" style="width:16px;height:16px;stroke-width:2;"></i>
+          Save Payment Details
+        </button>
+      </div>
+    </div>
+
+  </section><!-- /#panel-wallet -->
+
+
+</main><!-- /#main-content -->
+
+
+<!-- ================================================================
+     FLOATING ACTION BUTTON  (+  button above bottom bar)
+     Shortcut to Add Product — always visible, very accessible.
+================================================================ -->
+<button class="fab" aria-label="Add new product" title="Add Product" onclick="showPanel('add-product')">
+  <i data-lucide="plus"></i>
+</button>
+
+
+<!-- ================================================================
+     BOTTOM NAVIGATION BAR  — the "TikTok Bar"
+     Fixed to bottom. 3 tabs: Analytics · Account · Wallet
+================================================================ -->
+<nav class="bottom-bar" role="navigation" aria-label="Main navigation">
+
+  <!--
+    Each tab:
+     - data-panel="xxx"    → which panel to show (read by JS)
+     - onclick             → shows the panel and sets active state
+     - .is-active          → applied by JS to the current tab
+  -->
+
+  <!-- Analytics / Growth tab -->
+  <button
+    class="bottom-bar__tab"
+    data-panel="analytics"
+    aria-label="Analytics"
+    onclick="showPanel('analytics')"
+  >
+    <i data-lucide="trending-up"></i>
+    <span class="bottom-bar__label">Analytics</span>
+  </button>
+
+  <!-- Account Settings tab -->
+  <button
+    class="bottom-bar__tab"
+    data-panel="settings"
+    aria-label="Account settings"
+    onclick="showPanel('settings')"
+  >
+    <i data-lucide="settings-2"></i>
+    <span class="bottom-bar__label">Account</span>
+  </button>
+
+  <!-- Wallet / Bank Info tab -->
+  <button
+    class="bottom-bar__tab"
+    data-panel="wallet"
+    aria-label="Bank & wallet info"
+    onclick="showPanel('wallet')"
+  >
+    <i data-lucide="landmark"></i>
+    <span class="bottom-bar__label">Wallet</span>
+  </button>
+
+</nav>
+
+
+<!-- ================================================================
+     TOAST NOTIFICATION
+     Stage 3 will call showToast("message", "success") to trigger this.
+================================================================ -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+
+<!-- ================================================================
+     MINIMAL UI LOGIC
+     Just enough to make the navigation work for preview.
+     Stage 3 replaces all of this with real Firebase logic.
+================================================================ -->
+<script>
+  // ── Step 1: Render all Lucide icons ──────────────────────────
+  // Lucide works by finding every <i data-lucide="icon-name">
+  // and replacing it with a real inline SVG.
+  // This MUST run after the DOM is loaded.
+  lucide.createIcons();
+
+
+  // ── Step 2: Panel navigation ─────────────────────────────────
+  // showPanel(panelId) does three things:
+  //   1. Hides all panels
+  //   2. Shows the target panel (adds .panel--active)
+  //   3. Updates active states on top bar and bottom bar buttons
+  function showPanel(panelId) {
+    // Hide every panel
+    document.querySelectorAll('.panel').forEach(p => {
+      p.classList.remove('panel--active');
+    });
+
+    // Show the target panel
+    const target = document.getElementById('panel-' + panelId);
+    if (target) target.classList.add('panel--active');
+
+    // Remove .is-active from all top bar buttons
+    document.querySelectorAll('.top-bar__btn').forEach(btn => {
+      btn.classList.remove('is-active');
+    });
+
+    // Add .is-active to the matching top bar button (if it has data-panel)
+    const topBtn = document.querySelector(`.top-bar__btn[data-panel="${panelId}"]`);
+    if (topBtn) topBtn.classList.add('is-active');
+
+    // Remove .is-active from all bottom bar tabs
+    document.querySelectorAll('.bottom-bar__tab').forEach(tab => {
+      tab.classList.remove('is-active');
+    });
+
+    // Add .is-active to the matching bottom bar tab
+    const botTab = document.querySelector(`.bottom-bar__tab[data-panel="${panelId}"]`);
+    if (botTab) botTab.classList.add('is-active');
+
+    // Scroll to top of content on panel change
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+
+  // ── Step 3: Toast notification helper ────────────────────────
+  // Stage 3 will call this to show success/error messages.
+  // showToast("Saved!", "success")
+  // showToast("Error", "error")
+  let toastTimer;
+  function showToast(message, type = '') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    // Reset classes then add the right one
+    toast.className = 'toast toast--visible';
+    if (type) toast.classList.add('toast--' + type);
+    // Auto-hide after 2.8s
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('toast--visible');
+    }, 2800);
+  }
+
+
+  // ── Step 4: Copy to clipboard helper ────────────────────────
+  function copyText(text, successMessage = 'Copied!') {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMessage, 'gold');
+    }).catch(() => {
+      showToast('Could not copy — please copy manually.', 'error');
+    });
+  }
+
+
+  // ── Step 5: Size chip toggle (visual only — Stage 3 reads values)
+  document.querySelectorAll('.size-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      // Toggle the active style
+      const isSelected = chip.dataset.selected === 'true';
+      chip.dataset.selected = !isSelected;
+      // Visual: darken if selected, lighter if not
+      if (!isSelected) {
+        chip.style.background  = 'var(--white)';
+        chip.style.color       = 'var(--black)';
+        chip.style.borderColor = 'var(--white)';
+      } else {
+        chip.style.background  = 'var(--white5)';
+        chip.style.color       = 'var(--white2)';
+        chip.style.borderColor = 'var(--white4)';
+      }
+    });
+  });
+
+
+  // ── Placeholder stubs — Stage 3 replaces these with real logic ──
+  function handleLogout()                 { showToast('Logging out…');            }
+  function filterOrders(status)           { showToast('Filter: ' + status);       }
+  function viewOrder(id)                  { showToast('Opening order ' + id);      }
+  function viewOrderScreenshot(id)        { showToast('Loading screenshot…');      }
+  function updateOrderStatus(id, status)  { showToast('Status → ' + status, 'success'); }
+  function saveSettingsSection(section)   { showToast('Saved ' + section + ' info ✓', 'success'); }
+  function savePaymentDetails()           { showToast('Payment details saved ✓', 'success'); }
+
+
+  // ── Run product image preview ─────────────────────────────────
+  document.getElementById('product-img-input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const preview = document.getElementById('product-img-preview');
+      preview.src = ev.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+</script>
+
+<script type="module" src="cloudinary-upload.js"></script>
+<script type="module" src="admin-logic.js"></script>
+<script type="module" src="admin-stage4.js"></script>
+</body>
+</html>
+

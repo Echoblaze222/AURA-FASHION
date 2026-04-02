@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AURA — Admin Setup</title>
+
+<!--
+  update-profile.html
+  ────────────────────
+  This page ONLY shows up ONCE — when the admin logs in for the
+  very first time using the default credentials.
+
+  After they fill this form and click Save:
+   1. Their data is written to Firestore (/users/{uid})
+   2. firstLogin is set to false in Firestore
+   3. They are redirected to the dashboard (index.html)
+   4. They will NEVER see this page again (unless firstLogin = true again)
+-->
+
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<style>
+/* ── Minimal Apple-dark style, matching the main app ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #000;
+  color: #f5f5f7;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle background glow */
+body::before {
+  content: '';
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(10,132,255,0.08) 0%, transparent 70%);
+  top: -150px; left: 50%; transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.card {
+  background: rgba(18,18,18,0.97);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 22px;
+  padding: 44px 40px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.7);
+}
+
+/* Lock icon at the top */
+.setup-icon {
+  font-size: 2.8rem;
+  text-align: center;
+  margin-bottom: 20px;
+  animation: pop 0.5s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pop { from{transform:scale(0.6);opacity:0} to{transform:scale(1);opacity:1} }
+
+.card-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2rem;
+  font-weight: 300;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.card-sub {
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245,245,247,0.45);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+/* Warning banner — shown at the top */
+.warning-banner {
+  background: rgba(255,214,10,0.08);
+  border: 0.5px solid rgba(255,214,10,0.25);
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  line-height: 1.8;
+  color: rgba(255,214,10,0.9);
+  margin-bottom: 28px;
+  margin-top: 20px;
+}
+
+/* Form fields */
+.fg { margin-bottom: 18px; }
+.fg label {
+  display: block;
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245,245,247,0.45);
+  margin-bottom: 7px;
+}
+.fg input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 13px 16px;
+  color: #f5f5f7;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fg input:focus {
+  border-color: rgba(10,132,255,0.5);
+  box-shadow: 0 0 0 3px rgba(10,132,255,0.08);
+}
+.fg .hint {
+  font-size: 0.52rem;
+  color: rgba(245,245,247,0.3);
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+
+/* Save button */
+.btn-save {
+  width: 100%;
+  padding: 14px;
+  background: #0a84ff;
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.btn-save:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-save:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* Error message box */
+#setup-error {
+  display: none;
+  background: rgba(255,55,95,0.08);
+  border: 0.5px solid rgba(255,55,95,0.25);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 0.6rem;
+  color: #ff375f;
+  margin-top: 14px;
+  letter-spacing: 0.04em;
+  line-height: 1.7;
+}
+
+/* Success state */
+#setup-success {
+  display: none;
+  text-align: center;
+  padding: 20px 0;
+}
+#setup-success .success-icon { font-size: 3rem; margin-bottom: 14px; animation: pop 0.5s cubic-bezier(.34,1.56,.64,1); }
+#setup-success p { font-size: 0.65rem; color: rgba(245,245,247,0.6); line-height: 1.8; }
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Divider */
+.divider {
+  height: 0.5px;
+  background: rgba(255,255,255,0.08);
+  margin: 24px 0;
+}
+
+/* Already set up? link */
+.already-setup {
+  text-align: center;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  color: rgba(245,245,247,0.3);
+  margin-top: 20px;
+}
+.already-setup a { color: #0a84ff; text-decoration: none; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Lock icon -->
+  <div class="setup-icon">🔐</div>
+
+  <!-- Title -->
+  <div class="card-title">Admin Setup</div>
+  <div class="card-sub">First-time configuration</div>
+
+  <!-- Warning explaining WHY they're here -->
+  <div class="warning-banner">
+    ⚠️ You are using the <strong>default admin credentials</strong>.<br>
+    Please set your store name and personal details below.<br>
+    This step only happens once — you won't see this page again after saving.
+  </div>
+
+  <!-- THE FORM — hidden when success message shows -->
+  <div id="setup-form">
+
+    <!-- Store name — shown in the app's bio section -->
+    <div class="fg">
+      <label>Store / Brand Name *</label>
+      <input
+        type="text"
+        id="store-name"
+        placeholder="e.g. AURA Fashion Lagos"
+        maxlength="60"
+      />
+      <div class="hint">This is the name customers will see on your store.</div>
+    </div>
+
+    <!-- Admin's display name -->
+    <div class="fg">
+      <label>Your Name *</label>
+      <input
+        type="text"
+        id="admin-name"
+        placeholder="e.g. Adebayo Johnson"
+        maxlength="50"
+      />
+    </div>
+
+    <!-- WhatsApp / phone number -->
+    <div class="fg">
+      <label>WhatsApp Number *</label>
+      <input
+        type="tel"
+        id="admin-phone"
+        placeholder="+2348012345678"
+        maxlength="20"
+      />
+      <div class="hint">Include country code. Customers will send orders here.</div>
+    </div>
+
+    <!-- Store location / city -->
+    <div class="fg">
+      <label>Store Location</label>
+      <input
+        type="text"
+        id="admin-location"
+        placeholder="e.g. Lagos, Nigeria"
+        maxlength="60"
+      />
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Save button -->
+    <button class="btn-save" id="save-btn" onclick="handleSaveProfile()">
+      Save &amp; Continue to Dashboard →
+    </button>
+
+    <!-- Error message (shown if something goes wrong) -->
+    <div id="setup-error"></div>
+
+  </div><!-- /#setup-form -->
+
+  <!-- SUCCESS STATE (shown after save completes) -->
+  <div id="setup-success">
+    <div class="success-icon">✅</div>
+    <p>Profile saved!<br>Taking you to the dashboard…</p>
+  </div>
+
+  <div class="already-setup">
+    Wrong page? <a onclick="window.location.href='index.html'">Go to dashboard</a>
+  </div>
+
+</div><!-- /.card -->
+
+
+<script type="module">
+  <button onclick="signInWithGoogle()">Sign in with Google</button>
+// ============================================================
+//  update-profile.html — Script
+//
+//  This script imports our Firebase functions from firebase.js
+//  and uses them to save the admin's profile when they submit
+//  the form.
+// ============================================================
+
+// Import the functions we need from our firebase.js file.
+// The "./" means "same folder as this HTML file".
+import {
+  auth,
+  completeAdminProfileSetup
+} from "./firebase.js";
+
+// Import onAuthStateChanged so we can check if someone is logged in
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+// ── Security check: Is an admin actually logged in? ──────────
+// If someone types this URL directly without logging in,
+// we send them to the login page.
+//
+// onAuthStateChanged fires as soon as Firebase checks the session.
+// If user is null (not logged in), redirect to login.
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    // Nobody is logged in — they shouldn't be here
+    console.warn("No user logged in — redirecting to login.");
+    window.location.href = "index.html";
+  } else {
+    // Someone is logged in — pre-fill their name if Google gave us one
+    if (user.displayName) {
+      const nameInput = document.getElementById("admin-name");
+      if (nameInput && !nameInput.value) {
+        nameInput.value = user.displayName;
+      }
+    }
+  }
+});
+
+
+// ── handleSaveProfile() ──────────────────────────────────────
+// Called when the admin clicks "Save & Continue to Dashboard".
+// Reads the form values, validates them, then calls
+// completeAdminProfileSetup() from firebase.js.
+window.handleSaveProfile = async function() {
+  // Read the values from each input field
+  const storeName = document.getElementById("store-name").value.trim();
+  const adminName = document.getElementById("admin-name").value.trim();
+  const phone     = document.getElementById("admin-phone").value.trim();
+  const location  = document.getElementById("admin-location").value.trim();
+
+  // ── Validation: make sure required fields are filled ────────
+  if (!storeName) {
+    showError("Please enter your store/brand name.");
+    document.getElementById("store-name").focus();
+    return; // Stop here — don't try to save
+  }
+
+  if (!adminName) {
+    showError("Please enter your name.");
+    document.getElementById("admin-name").focus();
+    return;
+  }
+
+  if (!phone) {
+    showError("Please enter your WhatsApp number.");
+    document.getElementById("admin-phone").focus();
+    return;
+  }
+
+  // Basic phone validation — must start with + or a digit
+  if (!/^[\+]?[\d\s\-]{7,20}$/.test(phone)) {
+    showError("That doesn't look like a valid phone number. Include your country code, e.g. +234...");
+    return;
+  }
+
+  // ── Disable button and show loading state ───────────────────
+  const saveBtn = document.getElementById("save-btn");
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span class="spinner"></span>Saving…';
+  hideError();
+
+  // ── Call the Firebase function from firebase.js ─────────────
+  // completeAdminProfileSetup() does:
+  //   1. Writes the data to Firestore /users/{uid}
+  //   2. Sets firstLogin = false
+  //   3. Redirects to index.html (dashboard)
+  const result = await completeAdminProfileSetup({
+    name:        adminName,
+    storeName:   storeName,
+    phone:       phone,
+    location:    location
+  });
+
+  // If the function returned an error (it normally redirects on success)
+  if (result && !result.success) {
+    showError(result.message || "Something went wrong. Please try again.");
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = "Save &amp; Continue to Dashboard →";
+    return;
+  }
+
+  // ── Show success state briefly before redirect ───────────────
+  // (The redirect in completeAdminProfileSetup runs after a tiny delay
+  // so the user sees this confirmation message)
+  document.getElementById("setup-form").style.display = "none";
+  document.getElementById("setup-success").style.display = "block";
+};
+
+
+// ── showError(message) / hideError() ────────────────────────
+// Show or hide the red error message box under the form.
+function showError(message) {
+  const el = document.getElementById("setup-error");
+  el.textContent = message;
+  el.style.display = "block";
+  // Scroll the error into view on mobile
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function hideError() {
+  document.getElementById("setup-error").style.display = "none";
+}
+
+// ── Allow Enter key to submit the form ──────────────────────
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") window.handleSaveProfile();
+});
+</script>
+
+</body>
+</html>
+
+
