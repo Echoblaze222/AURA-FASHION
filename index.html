@@ -1,6 +1,566 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- ============================================================
+  AURA FASHION — customer-welcome.js + CSS
+  Customer Welcome Experience
+
+  HOW TO ADD THIS TO index.html:
+  1. Copy the <style> block and paste it inside your <head> tag
+  2. Copy the HTML blocks and paste them just after <body> opens
+  3. Add this script tag just before </body>:
+     <script type="module" src="customer-welcome.js"></script>
+
+  WHAT THIS FILE ADDS:
+   1. Welcome popup    — shows on first visit only, never again
+   2. Animated hero    — store name types itself letter by letter
+   3. Personal greeting — "Good evening, Amara 👋" after login
+   4. WhatsApp bubble  — fixed chat button, always visible
+============================================================ -->
+
+
+<!-- ============================================================
+  PASTE THIS INSIDE YOUR <head> TAG IN index.html
+============================================================ -->
+<style>
+
+/* ============================================================
+   WELCOME POPUP
+   Shows once on first visit. Fades in smoothly.
+   Dismissed by clicking the button — stored in localStorage
+   so it never shows again on the same device.
+============================================================ */
+
+/* The dark overlay behind the popup */
+.welcome-overlay {
+  position: fixed;           /* Floats above everything */
+  inset: 0;                  /* Covers the full screen */
+  z-index: 2000;             /* Above all other content */
+
+  /* Dark semi-transparent background */
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+
+  /* Center the popup card */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+
+  /* Fade in on load */
+  animation: overlayFadeIn 0.5s ease both;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Hidden state — JS adds this class to dismiss */
+.welcome-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+/* The popup card itself */
+.welcome-card {
+  background: linear-gradient(
+    160deg,
+    rgba(22, 22, 22, 0.98) 0%,
+    rgba(14, 14, 14, 0.99) 100%
+  );
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  padding: 44px 36px 36px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+
+  /* Slide up + fade in */
+  animation: cardSlideUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.7),
+    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset;
+}
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* Decorative gold glow in top-left corner of card */
+.welcome-card::before {
+  content: '';
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(232, 213, 176, 0.08) 0%,
+    transparent 70%
+  );
+  top: -60px;
+  left: -60px;
+  pointer-events: none;
+}
+
+/* The ✦ symbol at the top of the card */
+.welcome-card__symbol {
+  font-size: 2rem;
+  color: #e8d5b0;             /* Warm champagne gold */
+  margin-bottom: 20px;
+  display: block;
+  animation: symbolPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes symbolPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1);    }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+
+/* Store name in the popup */
+.welcome-card__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2.2rem;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  color: #f5f5f7;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.welcome-card__title span {
+  color: #e8d5b0; /* Gold A */
+}
+
+/* Tagline */
+.welcome-card__tagline {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245, 245, 247, 0.4);
+  margin-bottom: 28px;
+}
+
+/* The warm welcome message */
+.welcome-card__message {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  color: rgba(245, 245, 247, 0.72);
+  line-height: 1.75;
+  margin-bottom: 32px;
+  letter-spacing: 0.01em;
+}
+
+.welcome-card__message strong {
+  color: #f5f5f7;
+  font-weight: 500;
+}
+
+/* Thin divider line */
+.welcome-card__divider {
+  height: 0.5px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(232, 213, 176, 0.3),
+    transparent
+  );
+  margin-bottom: 28px;
+}
+
+/* Enter store button */
+.welcome-card__btn {
+  width: 100%;
+  padding: 15px 24px;
+  background: #e8d5b0;        /* Champagne gold */
+  color: #080808;              /* Near black text */
+  border: none;
+  border-radius: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.welcome-card__btn:hover {
+  background: #f0e0c0;        /* Slightly lighter gold */
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(232, 213, 176, 0.25);
+}
+
+.welcome-card__btn:active {
+  transform: scale(0.97);
+}
+
+/* "Already a member" sign in link */
+.welcome-card__signin {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  color: rgba(245, 245, 247, 0.35);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.welcome-card__signin:hover {
+  color: rgba(245, 245, 247, 0.7);
+}
+
+.welcome-card__signin span {
+  color: #e8d5b0;
+  text-decoration: underline;
+  text-decoration-color: rgba(232, 213, 176, 0.4);
+}
+
+
+/* ============================================================
+   PERSONALISED GREETING BANNER
+   Slides in from the top after login.
+   Shows the customer's name + time-of-day greeting.
+   Dismisses automatically after 5 seconds.
+============================================================ */
+.greeting-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 500;
+
+  /* Glass morphism */
+  background: rgba(10, 10, 10, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 0.5px solid rgba(232, 213, 176, 0.15);
+
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  /* Slide down from above the screen */
+  transform: translateY(-100%);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Visible state — JS adds this */
+.greeting-banner.visible {
+  transform: translateY(0);
+}
+
+.greeting-banner__text {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: rgba(245, 245, 247, 0.85);
+  letter-spacing: 0.02em;
+}
+
+.greeting-banner__name {
+  color: #e8d5b0;             /* Gold name */
+  font-weight: 500;
+}
+
+.greeting-banner__sub {
+  font-size: 0.65rem;
+  color: rgba(245, 245, 247, 0.4);
+  margin-top: 2px;
+  letter-spacing: 0.04em;
+}
+
+/* Dismiss X button */
+.greeting-banner__close {
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: rgba(245, 245, 247, 0.4);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.greeting-banner__close:hover {
+  color: rgba(245, 245, 247, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+
+/* ============================================================
+   ANIMATED HERO SECTION
+   The store name types itself letter by letter.
+   Underneath, a warm subtitle fades in.
+============================================================ */
+
+/* The typing cursor that blinks after the text */
+.hero-title .cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.85em;
+  background: #e8d5b0;        /* Gold cursor */
+  margin-left: 4px;
+  vertical-align: middle;
+  border-radius: 2px;
+  animation: cursorBlink 1s ease-in-out infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* The warm subtitle below the hero title */
+.hero-warm-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: rgba(245, 245, 247, 0.5);
+  letter-spacing: 0.08em;
+  margin-top: 16px;
+  opacity: 0;
+  animation: warmSubFadeIn 0.8s ease 2.5s forwards; /* Delayed — appears after typing */
+}
+
+@keyframes warmSubFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Gold underline accent beneath the hero title */
+.hero-gold-line {
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(to right, #e8d5b0, transparent);
+  margin: 20px auto 0;
+  border-radius: 10px;
+  opacity: 0;
+  animation: warmSubFadeIn 0.8s ease 2.8s forwards;
+}
+
+
+/* ============================================================
+   WHATSAPP CHAT BUBBLE
+   Fixed to the bottom-right corner.
+   Always visible — customer taps to open WhatsApp instantly.
+   Pulses gently to draw attention without being annoying.
+============================================================ */
+.wa-bubble {
+  position: fixed;
+  bottom: 28px;
+  right: 24px;
+  z-index: 1000;
+
+  /* WhatsApp green */
+  background: #25d366;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  box-shadow:
+    0 4px 20px rgba(37, 211, 102, 0.4),
+    0 0 0 0 rgba(37, 211, 102, 0.4);
+
+  /* Pulse animation — draws attention subtly */
+  animation: waPulse 2.5s ease-in-out infinite;
+
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Slide in from right after page loads */
+  opacity: 0;
+  transform: translateX(80px);
+}
+
+/* Visible state — JS adds this after 1.5s delay */
+.wa-bubble.visible {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 0.5s ease,
+    transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.wa-bubble:hover {
+  transform: scale(1.1) translateX(0);
+  box-shadow: 0 8px 32px rgba(37, 211, 102, 0.5);
+  animation: none; /* Stop pulse on hover — feels intentional */
+}
+
+.wa-bubble:active {
+  transform: scale(0.95);
+}
+
+/* WhatsApp SVG icon */
+.wa-bubble svg {
+  width: 30px;
+  height: 30px;
+  fill: #fff;
+}
+
+/* Tooltip that appears on hover */
+.wa-bubble__tooltip {
+  position: absolute;
+  right: 68px;                /* Sits to the LEFT of the bubble */
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(10, 10, 10, 0.92);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.68rem;
+  color: rgba(245, 245, 247, 0.85);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+/* Small arrow pointing right toward the bubble */
+.wa-bubble__tooltip::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: rgba(255, 255, 255, 0.1);
+}
+
+.wa-bubble:hover .wa-bubble__tooltip {
+  opacity: 1;
+}
+
+/* Notification dot — shows when there's a new collection/offer */
+.wa-bubble__dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  background: #ff375f;        /* Red notification dot */
+  border-radius: 50%;
+  border: 2px solid #080808;
+  animation: dotPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 2s both;
+}
+
+@keyframes dotPop {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+
+@keyframes waPulse {
+  0%   { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 0 rgba(37,211,102,0.4); }
+  70%  { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 14px rgba(37,211,102,0); }
+  100% { box-shadow: 0 4px 20px rgba(37,211,102,0.4), 0 0 0 0 rgba(37,211,102,0); }
+}
+
+</style>
+
+
+<!-- ============================================================
+  PASTE THESE HTML BLOCKS JUST AFTER YOUR <body> TAG IN index.html
+============================================================ -->
+
+<!-- WELCOME POPUP — shows on first visit only -->
+<div class="welcome-overlay" id="welcome-overlay">
+  <div class="welcome-card">
+
+    <!-- Pulsing brand symbol -->
+    <span class="welcome-card__symbol">✦</span>
+
+    <!-- Store name -->
+    <div class="welcome-card__title"><span>A</span>URA</div>
+    <div class="welcome-card__tagline">Fashion · 2026</div>
+
+    <!-- Warm, friendly message -->
+    <div class="welcome-card__message">
+      Welcome, love. 🤍<br><br>
+      You've just stepped into a space where
+      <strong>style meets intention.</strong>
+      Every piece here was chosen just for you.
+    </div>
+
+    <div class="welcome-card__divider"></div>
+
+    <!-- Enter button -->
+    <button class="welcome-card__btn" onclick="dismissWelcome()">
+      Enter the Store ✦
+    </button>
+
+    <!-- Sign in link -->
+    <div class="welcome-card__signin">
+      Already a member?
+      <span onclick="dismissWelcome(); openAuthFlow();">Sign in here</span>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- PERSONALISED GREETING BANNER — shown after login -->
+<div class="greeting-banner" id="greeting-banner">
+  <div>
+    <div class="greeting-banner__text">
+      <span id="greeting-time-text">Welcome back</span>,
+      <span class="greeting-banner__name" id="greeting-name">friend</span> 👋
+    </div>
+    <div class="greeting-banner__sub" id="greeting-sub">
+      So glad you're here. Let's find something beautiful.
+    </div>
+  </div>
+  <button class="greeting-banner__close" onclick="dismissGreeting()">✕</button>
+</div>
+
+
+<!-- WHATSAPP CHAT BUBBLE — always visible bottom right -->
+<div class="wa-bubble" id="wa-bubble" onclick="openWhatsAppChat()" role="button"
+     aria-label="Chat with us on WhatsApp" tabindex="0">
+
+  <!-- WhatsApp logo SVG (official icon, no external dependency) -->
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94
+    1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297
+    -.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149
+    -.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297
+    -1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489
+    1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074
+    -.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648
+    -.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825
+    9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0
+    .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005
+    c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  </svg>
+
+  <!-- Hover tooltip -->
+  <div class="wa-bubble__tooltip">Chat with us 💬</div>
+
+  <!-- Red notification dot -->
+  <div class="wa-bubble__dot"></div>
+
+</div>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>AURA — Fashion</title>
