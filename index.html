@@ -2499,17 +2499,26 @@ function createEmailAccount(email, pw) {
 
 // Social signup simulation (replace with real OAuth in production)
 function socialSignup(method) {
+  // Show "Coming Soon" for Facebook and WhatsApp
+  // These will be fully built in a future update
+  if (method === "facebook" || method === "whatsapp") {
+    toast(method.charAt(0).toUpperCase() + method.slice(1) 
+      + " login coming soon! 🚀 Use Google or Email for now.", "");
+    return; // Stop here — don't create a fake account
+  }
+  // Other methods continue normally
   const d = S._surveyData || {};
-  S.user = {
+  const user = {
     id: "USR-" + Date.now(),
     name: d.name || "Customer",
     email: d.email || method + "_" + Date.now() + "@social.com",
     phone: d.phone || "",
-    method,
-    ...d, createdAt: Date.now(),
+    method, verified: true, ...d, createdAt: Date.now(),
   };
-  DB.users.push({ ...S.user });
-  saveDB(); saveUser();
+  fbSet("users", user.id, user);
+  DB.users.push(user);
+  S.user = user;
+  saveLocalUser();
   showWelcomeStep();
 }
 
@@ -2543,11 +2552,22 @@ function signIn() {
 }
 
 function socialLogin(method) {
+  // Coming soon for Facebook and WhatsApp
+  if (method === "facebook" || method === "whatsapp") {
+    toast(method.charAt(0).toUpperCase() + method.slice(1)
+      + " login coming soon! Use Google or Email. 🚀", "");
+    return;
+  }
   const u = DB.users.find(x => x.method === method);
-  if(u) { S.user = u; saveUser(); closeOverlay("overlay-auth"); toast("Welcome back, " + u.name + "!", "success"); updateAuthNav(); }
-  else toast("No account found. Please sign up first.", "error");
+  if (u) {
+    S.user = u; saveLocalUser();
+    closeOverlay("overlay-auth");
+    toast("Welcome back, " + u.name + "!", "success");
+    updateAuthNav();
+  } else {
+    toast("No account found — sign up first", "error");
+  }
 }
-
 function showWelcomeStep() {
   document.getElementById("auth-content").innerHTML = `
     <div class="step-indicators">
